@@ -1,0 +1,49 @@
+name: Point marche quotidien
+
+on:
+  # 6h00 UTC, du lundi au vendredi.
+  # Attention : GitHub raisonne en UTC, pas en heure de Paris.
+  # 6h UTC = 8h a Paris en ete, 7h en hiver.
+  schedule:
+    - cron: "0 6 * * 1-5"
+
+  # Permet aussi de lancer a la main depuis l'onglet Actions.
+  # Indispensable pour tester sans attendre le lendemain.
+  workflow_dispatch:
+
+jobs:
+  releve:
+    runs-on: ubuntu-latest
+
+    # Autorise le job a ecrire dans le depot (pour l'historique).
+    permissions:
+      contents: write
+
+    steps:
+      # 1. Recuperer le code du depot sur la machine virtuelle
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      # 2. Installer Python
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # 3. Installer les bibliotheques
+      - name: Installer les dependances
+        run: pip install -r requirements.txt
+
+      # 4. Lancer le script
+      - name: Executer le releve
+        run: python marches.py --jours 5
+
+      # 5. Sauvegarder l'historique dans le depot
+      - name: Enregistrer l'historique
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add historique_marches.csv
+          git diff --staged --quiet || git commit -m "Releve du $(date +'%Y-%m-%d')"
+          git push
